@@ -1,10 +1,13 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE InstanceSigs #-}
 -- The above pragma enables all warnings
 
 module Task3 where
 
-import Task2 (Stream)
-import Data.Ratio (Ratio)
+import Task2 (Stream(..), repeat)
+import Data.Ratio (Ratio, numerator)
+
+import Prelude hiding (repeat)
 
 -- | Power series represented as infinite stream of coefficients
 -- 
@@ -38,9 +41,38 @@ newtype Series a = Series
 --
 -- >>> coefficients x
 -- [0,1,0,0,0,0,0,0,0,0]
---
+
+-- Define the power series corresponding to x
 x :: Num a => Series a
-x = error "TODO: define x"
+x = Series $ Stream 0 (Stream 1 (repeat 0))
+
+
+instance Num a => Num (Series a) where
+
+  fromInteger :: Num a => Integer -> Series a
+  fromInteger n = Series $ Stream (fromInteger n) (repeat 0)
+
+  negate :: Num a => Series a -> Series a
+  negate (Series c) = Series $ fmap negate c
+
+  (+) :: Num a => Series a -> Series a -> Series a
+  (+) (Series c1) (Series c2) = Series $ zipWithStream (+) c1 c2
+
+  (*) :: Num a => Series a -> Series a -> Series a
+  (*) (Series c1) b@(Series c2) = Series $ Stream first rest where
+    (Stream a0 restA) = c1  
+    (Stream b0 restB) = c2 
+    first = a0 * b0
+    rest = coefficients (a0 *: Series restB + Series restA * b) 
+
+  abs :: Num a => Series a -> Series a
+  abs (Series c) = Series $ fmap abs c
+
+  signum :: Num a => Series a -> Series a
+  signum (Series c) = Series $ fmap signum c
+
+zipWithStream :: (a -> b -> c) -> Stream a -> Stream b -> Stream c
+zipWithStream f (Stream y ys) (Stream z zs) = Stream (f y z) (zipWithStream f ys zs)
 
 -- | Multiplies power series by given number
 -- 
@@ -58,7 +90,20 @@ x = error "TODO: define x"
 --
 infixl 7 *:
 (*:) :: Num a => a -> Series a -> Series a
-(*:) = error "TODO: define (*:)"
+(*:) n (Series c) = Series $ fmap (* n) c 
+
+
+instance Fractional a => Fractional (Series a) where
+
+  fromRational :: Fractional a => Rational -> Series a
+  fromRational n = Series $ Stream (fromRational n) (repeat 0)
+
+  (/) :: Fractional a => Series a -> Series a -> Series a
+  (/) (Series c1) b@(Series c2) = Series $ Stream first rest where
+    (Stream a0 restA) = c1  
+    (Stream b0 restB) = c2 
+    first = a0 / b0
+    rest = coefficients ((Series restA - first *: Series restB) / b)
 
 -- | Helper function for producing integer
 -- coefficients from generating function
@@ -70,7 +115,7 @@ infixl 7 *:
 -- [2,3,0,0,0,0,0,0,0,0]
 --
 gen :: Series (Ratio Integer) -> Stream Integer
-gen = error "TODO: define gen"
+gen (Series c) = fmap numerator c
 
 -- | Returns infinite stream of ones
 --
@@ -80,7 +125,7 @@ gen = error "TODO: define gen"
 -- [1,1,1,1,1,1,1,1,1,1]
 --
 ones :: Stream Integer
-ones = error "TODO: define ones"
+ones = gen (1 / (1 - x))
 
 -- | Returns infinite stream of natural numbers (excluding zero)
 --
@@ -90,7 +135,7 @@ ones = error "TODO: define ones"
 -- [1,2,3,4,5,6,7,8,9,10]
 --
 nats :: Stream Integer
-nats = error "TODO: define nats (Task3)"
+nats = gen (1 / ((1 - x) * (1 - x)))
 
 -- | Returns infinite stream of fibonacci numbers (starting with zero)
 --
@@ -100,5 +145,4 @@ nats = error "TODO: define nats (Task3)"
 -- [0,1,1,2,3,5,8,13,21,34]
 --
 fibs :: Stream Integer
-fibs = error "TODO: define fibs (Task3)"
-
+fibs = gen (x / (1 - x - x * x))

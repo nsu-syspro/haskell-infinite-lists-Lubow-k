@@ -33,7 +33,7 @@ fibs = unfoldr (\(x, y) -> Just (x, (y, x + y))) (0, 1)
 -- [2,3,5,7,11,13,17,19,23,29]
 --
 primes :: [Integer]
-primes = unfoldr sieve (drop 1 nats)
+primes = unfoldr sieve $ drop 1 nats
 
 -- | One step of Sieve of Eratosthenes
 -- (to be used with 'unfoldr')
